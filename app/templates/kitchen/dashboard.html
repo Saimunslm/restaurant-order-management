@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Dashboard{% endblock %}
+
+{% block content %}
+<div x-data="kitchenDashboard()" x-init="init()" class="min-h-screen bg-gray-900 text-white">
+    <header class="bg-gray-800 shadow-lg p-3 safe-area-top">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-bold">Kitchen Dashboard</h1>
+                <p class="text-gray-400 text-xs">
+                    <span x-text="orders.length"></span> active orders
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button @click="playAlert()"
+                    class="bg-gray-700 px-3 py-2 rounded-lg text-sm active:bg-gray-600 active:scale-95 transition-all">
+                    🔔 Alert
+                </button>
+                <a href="/kitchen/logout" class="text-gray-400 hover:text-white text-sm px-3 py-2">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <div x-show="waiterRequests.length > 0"
+        x-transition
+        class="bg-amber-600 p-3 mx-3 mt-3 rounded-xl">
+        <h2 class="font-bold mb-2 text-sm">Waiter Requests</h2>
+        <div class="flex gap-2 flex-wrap">
+            <template x-for="req in waiterRequests" :key="req.table_id">
+                <div class="bg-white/20 px-3 py-2 rounded-lg flex items-center gap-2">
+                    <span class="text-sm font-medium">Table <span x-text="req.table_number"></span></span>
+                    <button @click="clearWaiterRequest(req.table_id)"
+                        class="bg-white text-amber-600 px-3 py-1 rounded text-xs font-bold active:scale-95 transition-all">
+                        Clear
+                    </button>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div class="p-3">
+        <template x-if="orders.length === 0">
+            <div class="text-center py-16 text-gray-500">
+                <p class="text-5xl mb-4">👨‍🍳</p>
+                <p class="text-lg">No active orders</p>
+            </div>
+        </template>
+
+        <div class="grid grid-cols-1 gap-3">
+            <template x-for="order in orders" :key="order.id">
+                <div class="bg-gray-800 rounded-xl p-4 border-l-4 active:scale-[0.98] transition-all"
+                    :class="{
+                        'border-red-500': order.status === 'received',
+                        'border-yellow-500': order.status === 'preparing',
+                        'border-green-500': order.status === 'served'
+                    }">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <span class="text-xl font-bold">Table <span x-text="order.table_number"></span></span>
+                            <p class="text-gray-400 text-xs" x-text="formatTime(order.created_at)"></p>
+                        </div>
+                        <span class="px-2 py-1 rounded-lg text-xs font-bold"
+                            :class="{
+                                'bg-red-600 animate-pulse': order.status === 'received',
+                                'bg-yellow-600': order.status === 'preparing',
+                                'bg-green-600': order.status === 'served'
+                            }"
+                            x-text="order.status"></span>
+                    </div>
+
+                    <div class="space-y-1 mb-4 bg-gray-700/50 rounded-lg p-3">
+                        <template x-for="item in order.items" :key="item.product_name">
+                            <div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="font-medium">
+                                        <span x-text="item.quantity"></span>x
+                                        <span x-text="item.product_name"></span>
+                                    </span>
+                                </div>
+                                <template x-if="item.notes">
+                                    <p class="text-amber-400 text-xs ml-4 mt-0.5" x-text="'📝 ' + item.notes"></p>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button x-show="order.status === 'received'"
+                            @click="updateStatus(order.id, 'preparing')"
+                            class="flex-1 bg-yellow-600 py-3 rounded-xl text-sm font-bold active:bg-yellow-700 active:scale-95 transition-all">
+                            🔥 Start Preparing
+                        </button>
+                        <button x-show="order.status === 'preparing'"
+                            @click="updateStatus(order.id, 'served')"
+                            class="flex-1 bg-green-600 py-3 rounded-xl text-sm font-bold active:bg-green-700 active:scale-95 transition-all">
+                            ✅ Mark Served
+                        </button>
+                        <button x-show="order.status === 'served'"
+                            @click="updateStatus(order.id, 'completed')"
+                            class="flex-1 bg-gray-600 py-3 rounded-xl text-sm font-bold active:bg-gray-700 active:scale-95 transition-all">
+                            ✓ Complete
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.safe-area-top { padding-top: env(safe-area-inset-top); }
+</style>
+<script>
+function kitchenDashboard() {
+    return {
+        orders: [],
+        waiterRequests: [],
+        previousOrderCount: 0,
+
+        init() {
+            this.fetchOrders();
+            this.fetchWaiterRequests();
+            setInterval(() => {
+                this.fetchOrders();
+                this.fetchWaiterRequests();
+            }, 3000);
+        },
+
+        async fetchOrders() {
+            try {
+                const resp = await fetch('/api/kitchen/orders');
+                if (resp.ok) {
+                    const newOrders = await resp.json();
+                    if (newOrders.length > this.previousOrderCount && this.previousOrderCount > 0) {
+                        this.playAlert();
+                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                    }
+                    this.previousOrderCount = newOrders.length;
+                    this.orders = newOrders;
+                }
+            } catch (e) {}
+        },
+
+        async fetchWaiterRequests() {
+            try {
+                const resp = await fetch('/api/kitchen/waiter-requests');
+                if (resp.ok) {
+                    const newRequests = await resp.json();
+                    if (newRequests.length > this.waiterRequests.length) {
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+                    }
+                    this.waiterRequests = newRequests;
+                }
+            } catch (e) {}
+        },
+
+        async updateStatus(orderId, status) {
+            if (navigator.vibrate) navigator.vibrate(50);
+            try {
+                await fetch('/api/kitchen/orders/' + orderId + '/status', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                this.fetchOrders();
+            } catch (e) {}
+        },
+
+        async clearWaiterRequest(tableId) {
+            if (navigator.vibrate) navigator.vibrate(50);
+            try {
+                await fetch('/api/kitchen/waiter-requests/' + tableId + '/clear', { method: 'POST' });
+                this.fetchWaiterRequests();
+            } catch (e) {}
+        },
+
+        formatTime(isoString) {
+            return new Date(isoString).toLocaleTimeString();
+        },
+
+        playAlert() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const playBeep = (freq, startTime, duration) => {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.frequency.value = freq;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, startTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+                    oscillator.start(startTime);
+                    oscillator.stop(startTime + duration);
+                };
+                const now = audioCtx.currentTime;
+                playBeep(880, now, 0.15);
+                playBeep(880, now + 0.2, 0.15);
+                playBeep(1100, now + 0.4, 0.3);
+            } catch (e) {}
+        }
+    }
+}
+</script>
+{% endblock %}

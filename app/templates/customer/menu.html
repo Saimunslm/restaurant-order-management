@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Menu - Table {{ table.table_number }}{% endblock %}
+
+{% block content %}
+<div x-data="menuApp()" x-init="init()" class="pb-20">
+    <header class="bg-white shadow-sm sticky top-0 z-40 safe-area-top">
+        <div class="px-4 py-3 flex items-center justify-between">
+            <div>
+                <h1 class="text-lg font-bold text-gray-800">Restaurant Menu</h1>
+                <p class="text-xs text-gray-500">Table {{ table.table_number }}</p>
+            </div>
+            <button @click="showCart = !showCart"
+                class="relative p-3 text-gray-600 hover:text-gray-800 active:scale-95 transition-transform">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+                <span x-show="cart.length > 0"
+                    class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center"
+                    x-text="cart.length"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Single Offers -->
+    {% if offer_map %}
+    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-4 mx-3 mt-3 rounded-xl">
+        <h2 class="font-bold text-base">Today's Special Offers!</h2>
+        <div class="mt-2 flex gap-3 overflow-x-auto no-scrollbar pb-2">
+            {% for product_id, offer in offer_map.items() %}
+            <div class="bg-white/20 backdrop-blur rounded-lg p-3 min-w-[160px] flex-shrink-0">
+                <p class="font-medium text-sm">{{ offer.product.name }}</p>
+                <p class="text-xs mt-1">
+                    <span class="line-through opacity-75">৳{{ "%.2f"|format(offer.product.price) }}</span>
+                    <span class="font-bold text-yellow-200 ml-1">৳{{ "%.2f"|format(offer.offer_price) }}</span>
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Combo Offers -->
+    <template x-if="combos.length > 0">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 mx-3 mt-3 rounded-xl">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🎁</span>
+                <div>
+                    <h2 class="font-bold text-base">Combo Packages!</h2>
+                    <p class="text-xs text-pink-100">Save more with combos</p>
+                </div>
+            </div>
+            <div class="mt-3 flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                <template x-for="combo in combos" :key="combo.id">
+                    <div class="bg-white/20 backdrop-blur rounded-lg p-3 min-w-[220px] flex-shrink-0 cursor-pointer active:bg-white/30 transition-all"
+                        @click="showComboDetail(combo)">
+                        <template x-if="combo.image_url">
+                            <img :src="'/static/' + combo.image_url" class="w-full h-20 object-cover rounded-lg mb-2">
+                        </template>
+                        <p class="font-medium text-sm" x-text="combo.name"></p>
+                        <div class="mt-1">
+                            <span class="text-xs line-through opacity-75" x-text="'৳' + combo.original_total.toFixed(2)"></span>
+                            <span class="font-bold text-yellow-200 ml-1 text-lg" x-text="'৳' + combo.combo_price.toFixed(2)"></span>
+                        </div>
+                        <p class="text-xs mt-1 text-green-200">
+                            Save <span x-text="'৳' + combo.savings.toFixed(2)"></span>
+                        </p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- Category Tabs -->
+    <div class="sticky top-[52px] z-30 bg-gray-50 border-b safe-area-top">
+        <div class="px-3 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+            <button @click="selectedCategory = null"
+                :class="selectedCategory === null ? 'bg-gray-800 text-white' : 'bg-white text-gray-600'"
+                class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition active:scale-95">
+                All
+            </button>
+            {% for cat in categories %}
+            <button @click="selectedCategory = {{ cat.id }}"
+                :class="selectedCategory === {{ cat.id }} ? 'bg-gray-800 text-white' : 'bg-white text-gray-600'"
+                class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition active:scale-95">
+                {{ cat.name }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <main class="px-3 py-3">
+        <div class="grid grid-cols-1 gap-3">
+            {% for product in products %}
+            <div x-show="selectedCategory === null || selectedCategory === {{ product.category_id }}"
+                x-transition
+                class="bg-white rounded-xl shadow-sm border overflow-hidden active:shadow-md transition">
+                <div class="{% if product.image_url %}flex{% endif %}">
+                    {% if product.image_url %}
+                    <img src="/static/{{ product.image_url }}" alt="{{ product.name }}" 
+                        class="w-28 h-28 object-cover flex-shrink-0">
+                    {% endif %}
+                    <div class="p-3 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-semibold text-gray-800 text-sm">{{ product.name }}</h3>
+                            <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">{{ product.description }}</p>
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <div>
+                                {% if product.id in offer_map %}
+                                <span class="text-gray-400 line-through text-xs">৳{{ "%.2f"|format(product.price) }}</span>
+                                <span class="text-red-600 font-bold text-sm ml-1">৳{{ "%.2f"|format(offer_map[product.id].offer_price) }}</span>
+                                {% else %}
+                                <span class="text-gray-800 font-bold text-sm">৳{{ "%.2f"|format(product.price) }}</span>
+                                {% endif %}
+                            </div>
+                            <button @click="addToCart({{ product.id }}, '{{ product.name }}', {{ offer_map[product.id].offer_price if product.id in offer_map else product.price }})"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium active:bg-blue-700 active:scale-95 transition-all">
+                                Add +
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- Cart Sidebar -->
+    <div x-show="showCart" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 bg-black/50" @click.self="showCart = false">
+        <div class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0">
+            <div class="p-4 border-b flex items-center justify-between safe-area-top">
+                <h2 class="text-lg font-bold">Your Order</h2>
+                <button @click="showCart = false" class="p-2 text-gray-500 hover:text-gray-700 active:scale-95">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4">
+                <template x-if="cart.length === 0">
+                    <div class="text-center py-12">
+                        <svg class="w-16 h-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <p class="text-gray-500 mt-4">Your cart is empty</p>
+                    </div>
+                </template>
+
+                <template x-for="(item, index) in cart" :key="item.id">
+                    <div class="border-b py-4">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-medium text-sm" x-text="item.name"></h3>
+                                    <span x-show="item.is_combo" class="px-1.5 py-0.5 bg-pink-100 text-pink-600 text-xs rounded">COMBO</span>
+                                </div>
+                                <p class="text-xs text-gray-500">৳<span x-text="item.price.toFixed(2)"></span> each</p>
+                            </div>
+                            <button @click="removeFromCart(index)" class="text-red-500 text-xs px-2 py-1 active:scale-95">Remove</button>
+                        </div>
+                        <div class="mt-2 flex items-center gap-3">
+                            <button @click="item.quantity = Math.max(1, item.quantity - 1)"
+                                class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold active:bg-gray-300 active:scale-95 transition-all">-</button>
+                            <span x-text="item.quantity" class="w-8 text-center font-medium"></span>
+                            <button @click="item.quantity++"
+                                class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-lg font-bold active:bg-gray-300 active:scale-95 transition-all">+</button>
+                        </div>
+                        <input type="text" x-model="item.notes" placeholder="Notes (e.g., no onions)"
+                            class="mt-2 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </template>
+            </div>
+
+            <div x-show="cart.length > 0" class="p-4 border-t bg-white safe-area-bottom">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="font-medium">Total:</span>
+                    <span class="font-bold text-xl">৳<span x-text="getTotal().toFixed(2)"></span></span>
+                </div>
+                <button @click="submitOrder()"
+                    class="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg active:bg-green-700 active:scale-[0.98] transition-all shadow-lg">
+                    Place Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Combo Detail Modal -->
+    <div x-show="showComboModal" x-transition class="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+        @click.self="showComboModal = false">
+        <div class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="translate-y-full" x-transition:enter-end="translate-y-0">
+            <template x-if="selectedCombo">
+                <div>
+                    <template x-if="selectedCombo.image_url">
+                        <img :src="'/static/' + selectedCombo.image_url" class="w-full h-40 object-cover">
+                    </template>
+                    <div class="p-4">
+                        <div class="flex items-start justify-between mb-3">
+                            <div>
+                                <h3 class="font-bold text-lg" x-text="selectedCombo.name"></h3>
+                                <p class="text-sm text-gray-500" x-text="selectedCombo.description"></p>
+                            </div>
+                            <button @click="showComboModal = false" class="p-2 text-gray-400">×</button>
+                        </div>
+
+                        <!-- Items in Combo -->
+                        <div class="bg-gray-50 rounded-xl p-3 mb-4">
+                            <p class="text-xs text-gray-500 mb-2">What's included:</p>
+                            <template x-for="item in selectedCombo.items" :key="item.product_name">
+                                <div class="flex justify-between text-sm py-1.5">
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-5 h-5 bg-pink-100 text-pink-600 rounded-full flex items-center justify-center text-xs" x-text="item.quantity"></span>
+                                        <span x-text="item.product_name"></span>
+                                    </span>
+                                    <span class="text-gray-500" x-text="'৳' + (item.unit_price * item.quantity).toFixed(2)"></span>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Price -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <span class="text-gray-400 line-through" x-text="'৳' + selectedCombo.original_total.toFixed(2)"></span>
+                                <span class="text-pink-600 font-bold text-2xl ml-2" x-text="'৳' + selectedCombo.combo_price.toFixed(2)"></span>
+                            </div>
+                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                                Save <span x-text="'৳' + selectedCombo.savings.toFixed(2)"></span>
+                            </span>
+                        </div>
+
+                        <button @click="addComboToCart(selectedCombo)"
+                            class="w-full bg-pink-600 text-white py-3 rounded-xl font-bold active:bg-pink-700 active:scale-95 transition-all">
+                            Add Combo to Cart
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Order Placed Modal -->
+    <div x-show="orderPlaced" x-transition class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold mb-2">Order Placed!</h2>
+            <p class="text-gray-500 text-sm mb-6">Your order has been received by the kitchen</p>
+            <button @click="trackOrder()"
+                class="w-full bg-blue-600 text-white px-6 py-3 rounded-xl font-medium active:bg-blue-700 active:scale-95 transition-all">
+                Track Order
+            </button>
+        </div>
+    </div>
+
+    <!-- Call Waiter Button -->
+    <button @click="callWaiter()"
+        class="fixed bottom-6 left-6 z-40 bg-amber-500 text-white px-5 py-3 rounded-full shadow-lg active:bg-amber-600 active:scale-95 transition-all flex items-center gap-2 safe-area-bottom">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        <span class="text-sm font-medium">Call Waiter</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.safe-area-top { padding-top: env(safe-area-inset-top); }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+<script>
+function menuApp() {
+    return {
+        selectedCategory: null,
+        showCart: false,
+        cart: [],
+        combos: [],
+        showComboModal: false,
+        selectedCombo: null,
+        orderPlaced: false,
+        lastOrderId: null,
+
+        async init() {
+            // Load cart from localStorage
+            const saved = localStorage.getItem('cart');
+            if (saved) {
+                try { this.cart = JSON.parse(saved); } catch(e) {}
+            }
+            // Fetch combo offers
+            await this.fetchCombos();
+        },
+
+        async fetchCombos() {
+            try {
+                const resp = await fetch('/api/combos');
+                if (resp.ok) {
+                    this.combos = await resp.json();
+                }
+            } catch (e) {}
+        },
+
+        showComboDetail(combo) {
+            this.selectedCombo = combo;
+            this.showComboModal = true;
+        },
+
+        addComboToCart(combo) {
+            const comboName = combo.name;
+            const comboPrice = combo.combo_price;
+            const comboId = 'combo-' + combo.id;
+            
+            // Add each item individually to cart
+            combo.items.forEach(item => {
+                const existing = this.cart.find(ci => ci.id === item.product_id && !ci.is_combo);
+                if (existing) {
+                    existing.quantity += item.quantity;
+                } else {
+                    this.cart.push({
+                        id: item.product_id,
+                        name: item.product_name,
+                        price: item.unit_price,
+                        quantity: item.quantity,
+                        notes: '',
+                        is_combo: false
+                    });
+                }
+            });
+
+            // Add combo discount as negative item
+            this.cart.push({
+                id: comboId,
+                name: comboName + ' (Combo Discount)',
+                price: -combo.savings,
+                quantity: 1,
+                notes: '',
+                is_combo: true
+            });
+
+            this.saveCart();
+            this.showComboModal = false;
+            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+            alert('Combo added to cart!');
+        },
+
+        saveCart() {
+            localStorage.setItem('cart', JSON.stringify(this.cart));
+        },
+
+        addToCart(id, name, price) {
+            const existing = this.cart.find(item => item.id === id && !item.is_combo);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                this.cart.push({ id, name, price, quantity: 1, notes: '', is_combo: false });
+            }
+            this.saveCart();
+            if (navigator.vibrate) navigator.vibrate(10);
+        },
+
+        removeFromCart(index) {
+            this.cart.splice(index, 1);
+            this.saveCart();
+        },
+
+        getTotal() {
+            return this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        },
+
+        async submitOrder() {
+            const items = this.cart.filter(item => !item.is_combo).map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                notes: item.notes
+            }));
+
+            try {
+                const resp = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    this.lastOrderId = data.order_id;
+                    this.cart = [];
+                    localStorage.removeItem('cart');
+                    this.showCart = false;
+                    this.orderPlaced = true;
+                    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+                }
+            } catch (e) {
+                alert('Failed to place order');
+            }
+        },
+
+        trackOrder() {
+            window.location.href = '/order/' + this.lastOrderId;
+        },
+
+        async callWaiter() {
+            try {
+                await fetch('/call-waiter', { method: 'POST' });
+                if (navigator.vibrate) navigator.vibrate(200);
+                alert('Waiter has been notified!');
+            } catch (e) {
+                alert('Failed to notify waiter');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

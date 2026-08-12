@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Order Tracking{% endblock %}
+
+{% block content %}
+<div x-data="orderTracker('{{ order.id }}')" x-init="init()" class="max-w-lg mx-auto p-4">
+    <header class="mb-6">
+        <h1 class="text-xl font-bold text-gray-800">Order Tracking</h1>
+        <p class="text-sm text-gray-500">Table {{ table.table_number }}</p>
+    </header>
+
+    <div class="bg-white rounded-xl shadow-sm border p-5 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-gray-500">Order ID</span>
+            <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded" x-text="order.id?.substring(0, 8) + '...'"></span>
+        </div>
+
+        <div class="flex items-center justify-between mb-6">
+            <span class="text-sm text-gray-500">Total</span>
+            <span class="text-2xl font-bold text-green-600">৳<span x-text="order.total?.toFixed(2)"></span></span>
+        </div>
+
+        <div class="space-y-4">
+            <div class="flex items-center gap-4">
+                <div :class="getStatusClass('received')"
+                    class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                    <span x-show="order.status === 'received' || order.status === 'preparing' || order.status === 'served'">✓</span>
+                    <span x-show="order.status !== 'received' && order.status !== 'preparing' && order.status !== 'served'" class="text-sm font-bold">1</span>
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">Order Received</p>
+                    <p class="text-xs text-gray-500">Kitchen has your order</p>
+                </div>
+            </div>
+
+            <div class="ml-6 border-l-2 border-dashed h-8"
+                :class="order.status === 'preparing' || order.status === 'served' ? 'border-green-500' : 'border-gray-300'"></div>
+
+            <div class="flex items-center gap-4">
+                <div :class="getStatusClass('preparing')"
+                    class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                    <span x-show="order.status === 'preparing' || order.status === 'served'">✓</span>
+                    <span x-show="order.status !== 'preparing' && order.status !== 'served'" class="text-sm font-bold">2</span>
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">Preparing</p>
+                    <p class="text-xs text-gray-500">Your food is being prepared</p>
+                </div>
+            </div>
+
+            <div class="ml-6 border-l-2 border-dashed h-8"
+                :class="order.status === 'served' ? 'border-green-500' : 'border-gray-300'"></div>
+
+            <div class="flex items-center gap-4">
+                <div :class="getStatusClass('served')"
+                    class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                    <span x-show="order.status === 'served'">✓</span>
+                    <span x-show="order.status !== 'served'" class="text-sm font-bold">3</span>
+                </div>
+                <div>
+                    <p class="font-semibold text-sm">Served</p>
+                    <p class="text-xs text-gray-500">Enjoy your meal!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center text-xs text-gray-400 mb-4">
+        <p>Auto-updates every 5 seconds</p>
+    </div>
+
+    <a href="/menu"
+        class="block text-center bg-gray-100 text-gray-700 py-3 rounded-xl font-medium active:bg-gray-200 transition">
+        ← Back to Menu
+    </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function orderTracker(orderId) {
+    return {
+        order: { id: orderId, status: 'received', total: 0 },
+
+        init() {
+            this.fetchStatus();
+            setInterval(() => this.fetchStatus(), 5000);
+        },
+
+        async fetchStatus() {
+            try {
+                const resp = await fetch('/api/orders/' + orderId + '/status');
+                if (resp.ok) {
+                    const newData = await resp.json();
+                    if (newData.status !== this.order.status && this.order.status !== 'received') {
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    }
+                    this.order = newData;
+                }
+            } catch (e) {}
+        },
+
+        getStatusClass(status) {
+            const statuses = ['received', 'preparing', 'served'];
+            const currentIdx = statuses.indexOf(this.order.status);
+            const targetIdx = statuses.indexOf(status);
+
+            if (this.order.status === 'served' && status === 'served') {
+                return 'bg-green-500 text-white';
+            }
+            if (targetIdx < currentIdx) {
+                return 'bg-green-500 text-white';
+            }
+            if (targetIdx === currentIdx) {
+                return 'bg-blue-500 text-white animate-pulse';
+            }
+            return 'bg-gray-200 text-gray-500';
+        }
+    }
+}
+</script>
+{% endblock %}

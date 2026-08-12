@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill - Table {{ order.table.table_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+        .bill {
+            background: #fff;
+            width: 350px;
+            padding: 25px;
+            border: 1px dashed #ccc;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            color: #333;
+            letter-spacing: 2px;
+        }
+        .header p {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .info-row .label { color: #888; }
+        .divider {
+            border-top: 1px dashed #ccc;
+            margin: 12px 0;
+        }
+        .items-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .item-name {
+            flex: 1;
+            color: #333;
+        }
+        .item-qty {
+            color: #888;
+            margin: 0 10px;
+        }
+        .item-price {
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+        .total-section {
+            border-top: 2px dashed #333;
+            margin-top: 15px;
+            padding-top: 12px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: #888;
+            border-top: 1px dashed #ccc;
+            padding-top: 12px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+        .status-served { background: #d4edda; color: #155724; }
+        .status-completed { background: #e2e3e5; color: #383d41; }
+        .status-preparing { background: #fff3cd; color: #856404; }
+        .status-received { background: #cce5ff; color: #004085; }
+
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            z-index: 100;
+            transition: background 0.2s;
+        }
+        .print-btn:hover { background: #555; }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .bill { border: none; box-shadow: none; width: 100%; }
+            .print-btn { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ Print Bill</button>
+
+    <div class="bill">
+        <div class="header">
+            <h1>RESTAURANT</h1>
+            <p>QR Ordering System</p>
+        </div>
+
+        <div class="info-row">
+            <span class="label">Bill No:</span>
+            <span>{{ order.id[:8] }}...</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Table:</span>
+            <span>{{ order.table.table_number }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Date:</span>
+            <span>{{ order.created_at.strftime('%d %b %Y') }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Time:</span>
+            <span>{{ order.created_at.strftime('%I:%M %p') }}</span>
+        </div>
+        <div class="info-row">
+            <span class="label">Status:</span>
+            <span class="status-badge status-{{ order.status }}">{{ order.status }}</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="items-header">
+            <span>Item</span>
+            <span>Qty</span>
+            <span>Amount</span>
+        </div>
+
+        {% for item in order.items %}
+        <div class="item">
+            <span class="item-name">{{ item.product.name }}</span>
+            <span class="item-qty">x{{ item.quantity }}</span>
+            <span class="item-price">৳{{ "%.2f"|format(item.subtotal) }}</span>
+        </div>
+        {% if item.notes %}
+        <div style="font-size: 0.75rem; color: #888; margin-bottom: 6px; margin-left: 5px;">
+            Note: {{ item.notes }}
+        </div>
+        {% endif %}
+        {% endfor %}
+
+        <div class="total-section">
+            <div class="total-row">
+                <span>TOTAL</span>
+                <span>৳{{ "%.2f"|format(order.total_amount) }}</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Thank you for dining with us!</p>
+            <p style="margin-top: 5px;">Generated on {{ order.updated_at.strftime('%d %b %Y, %I:%M %p') }}</p>
+        </div>
+    </div>
+</body>
+</html>

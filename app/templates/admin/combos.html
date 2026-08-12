@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Combo Offers{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-100">
+    <nav class="bg-white shadow safe-area-top">
+        <div class="px-4 py-3 flex items-center justify-between">
+            <h1 class="text-lg font-bold text-gray-800">Combo Offers</h1>
+            <div class="flex items-center gap-2">
+                <a href="/admin/" class="text-gray-600 text-sm px-3 py-2">Dashboard</a>
+                <a href="/admin/logout" class="text-gray-500 text-sm px-3 py-2">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="px-4 py-4">
+        <!-- Add Combo Form -->
+        <div class="bg-white rounded-xl shadow p-4 mb-4">
+            <h2 class="text-base font-bold mb-3">Create Combo Package</h2>
+            <form method="POST" enctype="multipart/form-data" class="space-y-3" id="comboForm">
+                {{ form.hidden_tag() }}
+                
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Combo Name</label>
+                    {{ form.name(placeholder="e.g., Family Pack, Lunch Special", class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                </div>
+
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Description</label>
+                    {{ form.description(placeholder="What's included in this combo?", class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                </div>
+
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">Combo Image</label>
+                    <label class="block w-full px-4 py-3 border-2 border-dashed rounded-xl text-center cursor-pointer active:bg-gray-50">
+                        <input type="file" name="image" accept="image/*" class="hidden">
+                        <span class="text-sm text-gray-500">📷 Tap to select image</span>
+                    </label>
+                </div>
+
+                <!-- Products Selection -->
+                <div>
+                    <label class="block text-xs text-gray-500 mb-2">Add Products to Combo</label>
+                    <div id="productList" class="space-y-2">
+                        <div class="flex gap-2 items-center product-row">
+                            <select name="product_ids" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Select product</option>
+                                {% for p in products %}
+                                <option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.name }} (৳{{ "%.2f"|format(p.price) }})</option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" name="quantities" value="1" min="1" max="10" placeholder="Qty" class="w-16 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="button" onclick="removeProduct(this)" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center">×</button>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addProduct()" class="mt-2 text-blue-600 text-sm font-medium active:text-blue-800">
+                        + Add More Product
+                    </button>
+                </div>
+
+                <!-- Price Section -->
+                <div class="bg-gray-50 rounded-xl p-3">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-500">Original Total:</span>
+                        <span id="originalTotal" class="font-medium">$0.00</span>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Combo Price ($)</label>
+                        {{ form.combo_price(placeholder="0.00", class="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-lg") }}
+                    </div>
+                    <div class="flex justify-between text-sm mt-2">
+                        <span class="text-green-600 font-medium">You Save:</span>
+                        <span id="savings" class="font-bold text-green-600">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">Start Date</label>
+                        {{ form.start_date(class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">End Date</label>
+                        {{ form.end_date(class="w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500") }}
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-pink-600 text-white py-3 rounded-xl font-medium active:bg-pink-700 active:scale-95 transition-all">
+                    Create Combo Offer
+                </button>
+            </form>
+        </div>
+
+        <!-- Combo List -->
+        <div class="space-y-3">
+            {% for combo in combos %}
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                {% if combo.image_url %}
+                <img src="/static/{{ combo.image_url }}" alt="{{ combo.name }}" class="w-full h-32 object-cover">
+                {% endif %}
+                <div class="p-4">
+                    <div class="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 class="font-bold text-sm">{{ combo.name }}</h3>
+                            <p class="text-xs text-gray-500 mt-0.5">{{ combo.description }}</p>
+                        </div>
+                        <span class="px-2 py-0.5 text-xs rounded-full {{ 'bg-green-100 text-green-800' if combo.is_active else 'bg-gray-100 text-gray-600' }}">
+                            {{ 'Active' if combo.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+
+                    <!-- Items List -->
+                    <div class="bg-gray-50 rounded-lg p-2 mb-3">
+                        {% for item in combo.items %}
+                        <div class="flex justify-between text-xs py-1">
+                            <span>{{ item.product.name }} x{{ item.quantity }}</span>
+                            <span class="text-gray-500">৳{{ "%.2f"|format(item.product.price * item.quantity) }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Price -->
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-gray-400 line-through text-sm">৳{{ "%.2f"|format(combo.original_total) }}</span>
+                            <span class="text-pink-600 font-bold text-lg ml-2">৳{{ "%.2f"|format(combo.combo_price) }}</span>
+                        </div>
+                        <span class="text-green-600 text-sm font-medium">Save ৳{{ "%.2f"|format(combo.savings) }}</span>
+                    </div>
+
+                    <!-- Validity -->
+                    <p class="text-xs text-gray-400 mt-2">
+                        Valid: {{ combo.start_date.strftime('%d %b') }} - {{ combo.end_date.strftime('%d %b %Y') }}
+                    </p>
+
+                    <!-- Actions -->
+                    <div class="flex gap-2 mt-3 pt-3 border-t">
+                        <form method="POST" action="/admin/combos/{{ combo.id }}/toggle" class="flex-1">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="w-full py-2 rounded-lg text-sm font-medium {{ 'bg-amber-50 text-amber-600 active:bg-amber-100' if combo.is_active else 'bg-green-50 text-green-600 active:bg-green-100' }} transition-all">
+                                {{ 'Deactivate' if combo.is_active else 'Activate' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="/admin/combos/{{ combo.id }}/delete" class="flex-1"
+                            onsubmit="return confirm('Delete this combo?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="w-full bg-red-50 text-red-600 py-2 rounded-lg text-sm font-medium active:bg-red-100 transition-all">
+                                Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% if not combos %}
+            <div class="bg-white rounded-xl shadow p-8 text-center">
+                <span class="text-4xl">🎁</span>
+                <p class="text-gray-500 mt-4">No combo offers yet</p>
+                <p class="text-gray-400 text-sm">Create your first combo above</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addProduct() {
+    const html = `
+        <div class="flex gap-2 items-center product-row">
+            <select name="product_ids" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Select product</option>
+                {% for p in products %}
+                <option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.name }} (৳{{ "%.2f"|format(p.price) }})</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="quantities" value="1" min="1" max="10" placeholder="Qty" class="w-16 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="button" onclick="removeProduct(this)" class="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center">×</button>
+        </div>
+    `;
+    document.getElementById('productList').insertAdjacentHTML('beforeend', html);
+}
+
+function removeProduct(btn) {
+    const rows = document.querySelectorAll('.product-row');
+    if (rows.length > 1) {
+        btn.closest('.product-row').remove();
+        calculateTotal();
+    }
+}
+
+function calculateTotal() {
+    let total = 0;
+    document.querySelectorAll('.product-row').forEach(row => {
+        const select = row.querySelector('select');
+        const qty = row.querySelector('input[type="number"]');
+        if (select.value) {
+            const price = parseFloat(select.options[select.selectedIndex].getAttribute('data-price') || 0);
+            total += price * parseInt(qty.value || 1);
+        }
+    });
+    document.getElementById('originalTotal').textContent = '৳' + total.toFixed(2);
+    
+    const comboPrice = parseFloat(document.querySelector('[name="combo_price"]').value || 0);
+    const savings = total - comboPrice;
+    document.getElementById('savings').textContent = '৳' + Math.max(0, savings).toFixed(2);
+}
+
+document.querySelectorAll('.product-row select, .product-row input').forEach(el => {
+    el.addEventListener('change', calculateTotal);
+});
+document.querySelector('[name="combo_price"]').addEventListener('input', calculateTotal);
+</script>
+{% endblock %}
