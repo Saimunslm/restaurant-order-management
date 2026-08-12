@@ -136,7 +136,7 @@ function kitchenDashboard() {
                     const newOrders = await resp.json();
                     if (newOrders.length > this.previousOrderCount && this.previousOrderCount > 0) {
                         this.playAlert();
-                        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                        buzz([200, 100, 200]);
                     }
                     this.previousOrderCount = newOrders.length;
                     this.orders = newOrders;
@@ -150,7 +150,7 @@ function kitchenDashboard() {
                 if (resp.ok) {
                     const newRequests = await resp.json();
                     if (newRequests.length > this.waiterRequests.length) {
-                        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+                        buzz([100, 50, 100, 50, 100]);
                     }
                     this.waiterRequests = newRequests;
                 }
@@ -158,7 +158,7 @@ function kitchenDashboard() {
         },
 
         async updateStatus(orderId, status) {
-            if (navigator.vibrate) navigator.vibrate(50);
+            buzz(50);
             try {
                 await fetch('/api/kitchen/orders/' + orderId + '/status', {
                     method: 'PATCH',
@@ -170,7 +170,7 @@ function kitchenDashboard() {
         },
 
         async clearWaiterRequest(tableId) {
-            if (navigator.vibrate) navigator.vibrate(50);
+            buzz(50);
             try {
                 await fetch('/api/kitchen/waiter-requests/' + tableId + '/clear', { method: 'POST' });
                 this.fetchWaiterRequests();
@@ -182,25 +182,7 @@ function kitchenDashboard() {
         },
 
         playAlert() {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const playBeep = (freq, startTime, duration) => {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    oscillator.frequency.value = freq;
-                    oscillator.type = 'sine';
-                    gainNode.gain.setValueAtTime(0.3, startTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                    oscillator.start(startTime);
-                    oscillator.stop(startTime + duration);
-                };
-                const now = audioCtx.currentTime;
-                playBeep(880, now, 0.15);
-                playBeep(880, now + 0.2, 0.15);
-                playBeep(1100, now + 0.4, 0.3);
-            } catch (e) {}
+            playBeep();
         }
     }
 }

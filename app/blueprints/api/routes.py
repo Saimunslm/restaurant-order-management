@@ -72,7 +72,7 @@ def get_offers():
 @api_bp.route("/combos")
 def get_combos():
     from datetime import datetime
-    now = datetime.utcnow()
+    now = datetime.now()
     combos = ComboOffer.query.filter(
         ComboOffer.is_active == True,
         ComboOffer.start_date <= now,
@@ -82,6 +82,7 @@ def get_combos():
     for combo in combos:
         items = [
             {
+                "product_id": item.product_id,
                 "product_name": item.product.name,
                 "quantity": item.quantity,
                 "unit_price": item.product.price,
@@ -108,14 +109,16 @@ def submit_order():
     from flask import g
     data = request.get_json()
     items = data.get("items", [])
+    combos = data.get("combos", [])
 
-    if not items:
+    if not items and not combos:
         return jsonify({"error": "No items in order"}), 400
 
     order = create_order(
         table_id=g.current_table.id,
         session_token=session.get("qr_token"),
         items_data=items,
+        combos_data=combos,
     )
 
     return jsonify({

@@ -9,7 +9,7 @@ class ComboOffer(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, default="")
     combo_price = db.Column(db.Float, nullable=False)
-    start_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    start_date = db.Column(db.DateTime, nullable=False, default=datetime.now)
     end_date = db.Column(db.DateTime, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     image_url = db.Column(db.String(500), default="")
@@ -26,7 +26,7 @@ class ComboOffer(db.Model):
 
     @property
     def is_valid(self):
-        now = datetime.utcnow()
+        now = datetime.now()
         return self.is_active and self.start_date <= now <= self.end_date
 
     def __repr__(self):

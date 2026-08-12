@@ -32,7 +32,7 @@ def deactivate_offer(offer_id):
 
 
 def get_active_offers():
-    now = datetime.utcnow()
+    now = datetime.now()
     return SpecialOffer.query.filter(
         SpecialOffer.is_active == True,
         SpecialOffer.start_date <= now,
@@ -41,7 +41,7 @@ def get_active_offers():
 
 
 def check_and_expire_offers():
-    now = datetime.utcnow()
+    now = datetime.now()
     expired = SpecialOffer.query.filter(
         SpecialOffer.is_active == True,
         SpecialOffer.end_date < now,

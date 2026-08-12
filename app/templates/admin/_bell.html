@@ -1,0 +1,151 @@
+<div x-data="adminBell()" x-init="init()" class="relative">
+    <button @click="toggle()"
+        class="relative p-2 rounded-lg hover:bg-gray-100 active:scale-95 active:bg-gray-200 transition-all"
+        aria-label="Order notifications">
+        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        <span x-show="alerts.length > 0" x-cloak
+            class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 animate-pulse"
+            x-text="alerts.length"></span>
+    </button>
+
+    <div x-show="open" x-cloak @click.outside="open = false"
+        x-transition.origin.top.right
+        class="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-xl border border-gray-200 z-50">
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-gray-800">Order Notifications</h3>
+            <button @click="markAllRead()" class="text-xs text-blue-600 font-medium active:scale-95 transition-all">
+                Mark all read
+            </button>
+        </div>
+        <div class="max-h-80 overflow-y-auto">
+            <template x-if="alerts.length === 0">
+                <div class="px-4 py-8 text-center text-gray-400 text-sm">No notifications</div>
+            </template>
+            <template x-for="a in alerts" :key="a.id + a.kind + a.time">
+                <a :href="'/admin/orders'" @click="markAllRead()"
+                    class="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 active:bg-gray-100 transition-all">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-semibold text-sm text-gray-800">Table <span x-text="a.table"></span></span>
+                        <span class="px-2 py-0.5 text-[10px] rounded-full font-bold text-white"
+                            :class="{
+                                'bg-blue-500': a.kind === 'new',
+                                'bg-yellow-500': a.kind === 'change' && a.status === 'preparing',
+                                'bg-green-500': a.kind === 'change' && a.status === 'served'
+                            }"
+                            x-text="a.kind === 'new' ? 'NEW ORDER' : (a.from ? a.from.toUpperCase() + ' → ' : '') + a.status.toUpperCase()"></span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1 truncate" x-text="a.summary"></p>
+                    <div class="flex items-center justify-between mt-1.5">
+                        <span class="text-sm font-bold text-gray-800">৳<span x-text="a.total.toFixed(2)"></span></span>
+                        <span class="text-[11px] text-gray-400" x-text="formatTime(a.time)"></span>
+                    </div>
+                </a>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+function adminBell() {
+    return {
+        open: false,
+        alerts: [],
+        orders: [],
+
+        init() {
+            this.loadState();
+            this.poll();
+            setInterval(() => this.poll(), 5000);
+        },
+
+        loadState() {
+            this.alerts = [];
+            let seen = localStorage.getItem('admin_seen_orders');
+            if (!seen) {
+                let migrated = {};
+                const old = localStorage.getItem('admin_seen_orders_list');
+                if (old) {
+                    try { JSON.parse(old).forEach(id => migrated[id] = ''); } catch (e) {}
+                    localStorage.removeItem('admin_seen_orders_list');
+                }
+                localStorage.setItem('admin_seen_orders', JSON.stringify(migrated));
+            }
+        },
+
+        async poll() {
+            try {
+                const resp = await fetch('/admin/notifications');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                let seen = {};
+                try { seen = JSON.parse(localStorage.getItem('admin_seen_orders') || '{}'); } catch (e) {}
+                const before = this.alerts.length;
+                data.forEach(o => {
+                    const prev = seen[o.id];
+                    if (prev === undefined) {
+                        seen[o.id] = o.status;
+                        if (!this.alerts.find(a => a.id === o.id && a.kind === 'new')) {
+                            this.alerts.unshift({
+                                id: o.id,
+                                kind: 'new',
+                                status: o.status,
+                                table: o.table_number,
+                                total: o.total,
+                                summary: o.items.map(i => i.quantity + 'x ' + i.product_name).join(', '),
+                                time: Date.now()
+                            });
+                        }
+                    } else if (prev !== o.status && (o.status === 'preparing' || o.status === 'served')) {
+                        seen[o.id] = o.status;
+                        if (!this.alerts.find(a => a.id === o.id)) {
+                            this.alerts.unshift({
+                                id: o.id,
+                                kind: 'change',
+                                status: o.status,
+                                from: prev,
+                                table: o.table_number,
+                                total: o.total,
+                                summary: o.items.map(i => i.quantity + 'x ' + i.product_name).join(', '),
+                                time: Date.now()
+                            });
+                        }
+                    } else {
+                        seen[o.id] = o.status;
+                    }
+                });
+                this.alerts = this.alerts.slice(0, 40);
+                localStorage.setItem('admin_seen_orders', JSON.stringify(seen));
+                if (this.alerts.length > before) {
+                    playBeep();
+                    buzz([200, 100, 200]);
+                }
+            } catch (e) {}
+        },
+
+        toggle() {
+            this.open = !this.open;
+        },
+
+        async markAllRead() {
+            try {
+                await fetch('/admin/notifications-mark-read', { method: 'POST' });
+                // Also clear local seen list so poll doesn't re-add
+                localStorage.removeItem('admin_seen_orders');
+            } catch (e) {}
+            this.alerts = [];
+            this.open = false;
+        },
+
+        formatTime(ts) {
+            const d = new Date(ts);
+            const now = new Date();
+            const sameDay = d.toDateString() === now.toDateString();
+            const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return sameDay ? 'Today ' + time : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + time;
+        }
+    }
+}
+</script>

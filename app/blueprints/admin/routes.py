@@ -268,6 +268,57 @@ def orders():
     return render_template("admin/orders.html", orders=orders)
 
 
+@admin_bp.route("/orders/<order_id>/cancel", methods=["POST"])
+@login_required
+@admin_required
+def cancel_order(order_id):
+    from app.services.order_service import update_order_status
+
+    order = Order.query.get_or_404(order_id)
+    if order.status in ["received", "preparing"]:
+        update_order_status(order_id, "cancelled")
+        flash(f"Order {order.id[:8]}... has been cancelled", "success")
+    else:
+        flash("Only active orders can be cancelled", "error")
+    return redirect(url_for("admin.orders"))
+
+
+@admin_bp.route("/notifications-mark-read", methods=["POST"])
+@login_required
+@admin_required
+def mark_notifications_read():
+    from flask import jsonify
+    Order.query.update({})
+    db.session.commit()
+    return jsonify({"status": "success"})
+
+
+@admin_bp.route("/notifications")
+@login_required
+@admin_required
+def notifications():
+    from flask import jsonify
+
+    orders = Order.query.order_by(Order.created_at.desc()).limit(30).all()
+    return jsonify([
+        {
+            "id": order.id,
+            "table_number": order.table.table_number,
+            "status": order.status,
+            "total": order.total_amount,
+            "created_at": order.created_at.isoformat(),
+            "items": [
+                {
+                    "product_name": item.product.name,
+                    "quantity": item.quantity,
+                }
+                for item in order.items
+            ],
+        }
+        for order in orders if not order.is_read
+    ])
+
+
 @admin_bp.route("/combos", methods=["GET", "POST"])
 @login_required
 @admin_required

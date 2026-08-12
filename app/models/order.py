@@ -15,6 +15,7 @@ class Order(db.Model):
     total_amount = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_read = db.Column(db.Boolean, server_default='false', default=False)
 
     items = db.relationship("OrderItem", backref="order", lazy="dynamic", cascade="all, delete-orphan")
 

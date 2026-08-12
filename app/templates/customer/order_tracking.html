@@ -93,7 +93,7 @@ function orderTracker(orderId) {
                 if (resp.ok) {
                     const newData = await resp.json();
                     if (newData.status !== this.order.status && this.order.status !== 'received') {
-                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                        buzz([100, 50, 100]);
                     }
                     this.order = newData;
                 }

@@ -332,7 +332,7 @@ function menuApp() {
             
             // Add each item individually to cart
             combo.items.forEach(item => {
-                const existing = this.cart.find(ci => ci.id === item.product_id && !ci.is_combo);
+                const existing = this.cart.find(ci => ci.id === item.product_id && !ci.is_combo && ci.combo_id === combo.id);
                 if (existing) {
                     existing.quantity += item.quantity;
                 } else {
@@ -342,7 +342,8 @@ function menuApp() {
                         price: item.unit_price,
                         quantity: item.quantity,
                         notes: '',
-                        is_combo: false
+                        is_combo: false,
+                        combo_id: combo.id
                     });
                 }
             });
@@ -354,12 +355,13 @@ function menuApp() {
                 price: -combo.savings,
                 quantity: 1,
                 notes: '',
-                is_combo: true
+                is_combo: true,
+                combo_id: combo.id
             });
 
             this.saveCart();
             this.showComboModal = false;
-            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+            buzz([50, 30, 50]);
             alert('Combo added to cart!');
         },
 
@@ -368,14 +370,14 @@ function menuApp() {
         },
 
         addToCart(id, name, price) {
-            const existing = this.cart.find(item => item.id === id && !item.is_combo);
+            const existing = this.cart.find(item => item.id === id && !item.is_combo && !item.combo_id);
             if (existing) {
                 existing.quantity++;
             } else {
                 this.cart.push({ id, name, price, quantity: 1, notes: '', is_combo: false });
             }
             this.saveCart();
-            if (navigator.vibrate) navigator.vibrate(10);
+            buzz(30);
         },
 
         removeFromCart(index) {
@@ -388,17 +390,22 @@ function menuApp() {
         },
 
         async submitOrder() {
-            const items = this.cart.filter(item => !item.is_combo).map(item => ({
+            buzz([50, 50, 50]);
+            const items = this.cart.filter(item => !item.is_combo && !item.combo_id).map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
                 notes: item.notes
+            }));
+            const combos = this.cart.filter(item => item.is_combo && item.combo_id).map(item => ({
+                combo_id: item.combo_id,
+                quantity: item.quantity
             }));
 
             try {
                 const resp = await fetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items })
+                    body: JSON.stringify({ items, combos })
                 });
                 const data = await resp.json();
                 if (resp.ok) {
@@ -407,7 +414,6 @@ function menuApp() {
                     localStorage.removeItem('cart');
                     this.showCart = false;
                     this.orderPlaced = true;
-                    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
                 }
             } catch (e) {
                 alert('Failed to place order');
@@ -419,9 +425,9 @@ function menuApp() {
         },
 
         async callWaiter() {
+            buzz(200);
             try {
                 await fetch('/call-waiter', { method: 'POST' });
-                if (navigator.vibrate) navigator.vibrate(200);
                 alert('Waiter has been notified!');
             } catch (e) {
                 alert('Failed to notify waiter');
