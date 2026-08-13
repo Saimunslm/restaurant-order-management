@@ -36,6 +36,7 @@ def register_extensions(app):
             OrderItem,
             SpecialOffer,
             StaffUser,
+            Reservation,
         )
 
 
@@ -52,7 +53,19 @@ def register_blueprints(app):
 
     @app.route("/")
     def index():
-        return "QR Restaurant Ordering System"
+        from flask import render_template
+        from app.models.product import Product
+        from app.services.offer_service import get_active_offers
+
+        featured_products = Product.query.filter_by(is_available=True).limit(8).all()
+        offers = get_active_offers()
+        offer_map = {o.product_id: o for o in offers}
+
+        return render_template(
+            "home.html",
+            featured_products=featured_products,
+            offer_map=offer_map,
+        )
 
 
 def register_cli_commands(app):

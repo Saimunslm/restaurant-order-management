@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spice Garden - Reserve a Table</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['Playfair Display', 'serif'],
+                        'body': ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand': {
+                            50: '#fdf8f0', 100: '#faebd7', 200: '#f5d5a8', 300: '#e8b86d',
+                            400: '#d4944a', 500: '#c47a2f', 600: '#a85d22', 700: '#8a451c',
+                            800: '#6d361a', 900: '#4a2512',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .table-node { transition: all 0.3s ease; }
+        .table-node.round { border-radius: 50%; }
+        .table-node.square { border-radius: 12px; }
+        .table-node.rectangle { border-radius: 12px; }
+        .table-node.available:hover { transform: translate(-50%, -50%) scale(1.1); cursor: pointer; }
+        .table-node.booked { opacity: 0.5; cursor: not-allowed; }
+        .table-node.selected { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 0 4px #fbbf24, 0 8px 25px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body class="font-body bg-brand-50 min-h-screen">
+    <div x-data="reservationApp()" x-init="init()">
+        <!-- Navigation -->
+        <nav class="fixed top-0 left-0 right-0 z-50 bg-brand-900/95 backdrop-blur-md shadow-xl">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center gap-3">
+                        <a href="/" class="flex items-center gap-2">
+                            <div class="w-10 h-10 bg-brand-400 rounded-full flex items-center justify-center">
+                                <span class="text-xl">🍛</span>
+                            </div>
+                            <span class="font-display text-xl font-bold text-white">Spice Garden</span>
+                        </a>
+                    </div>
+                    <a href="/scan/demo" class="bg-brand-400 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-brand-500 transition-all">
+                        Order Food
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero -->
+        <section class="pt-16 pb-8 bg-gradient-to-r from-brand-800 to-brand-600">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
+                <h1 class="font-display text-3xl sm:text-4xl font-bold text-white mb-2">Reserve Your Table</h1>
+                <p class="text-brand-200/80">Select date, time, then pick your perfect table from the floor plan</p>
+            </div>
+        </section>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Step 1: Date & Time Selection -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 class="font-display text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm">1</span>
+                    Select Date & Time
+                </h2>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                        <input type="date" x-model="selectedDate" :min="minDate" @change="loadAvailability()"
+                            class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                        <select x-model="selectedTime" @change="loadAvailability()"
+                            class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                            <option value="">Select time</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="12:30">12:30 PM</option>
+                            <option value="13:00">1:00 PM</option>
+                            <option value="13:30">1:30 PM</option>
+                            <option value="14:00">2:00 PM</option>
+                            <option value="14:30">2:30 PM</option>
+                            <option value="15:00">3:00 PM</option>
+                            <option value="18:00">6:00 PM</option>
+                            <option value="18:30">6:30 PM</option>
+                            <option value="19:00">7:00 PM</option>
+                            <option value="19:30">7:30 PM</option>
+                            <option value="20:00">8:00 PM</option>
+                            <option value="20:30">8:30 PM</option>
+                            <option value="21:00">9:00 PM</option>
+                            <option value="21:30">9:30 PM</option>
+                            <option value="22:00">10:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Floor Plan -->
+            <div x-show="selectedDate && selectedTime" x-transition class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 class="font-display text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm">2</span>
+                    Choose Your Table
+                </h2>
+                <p class="text-sm text-gray-500 mb-4">Click on a green table to select it</p>
+
+                <!-- Legend -->
+                <div class="flex flex-wrap gap-4 mb-4 text-sm">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-green-500"></div>
+                        <span>Available</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-red-400 opacity-50"></div>
+                        <span>Booked</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full bg-yellow-400"></div>
+                        <span>Selected</span>
+                    </div>
+                </div>
+
+                <!-- Loading -->
+                <div x-show="loading" class="flex items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+                    <span class="ml-3 text-gray-500">Loading tables...</span>
+                </div>
+
+                <!-- Floor Plan -->
+                <div x-show="!loading" id="floor-plan" class="relative bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl overflow-hidden" style="height: 450px;">
+                    <template x-for="table in tables" :key="table.id">
+                        <div class="table-node absolute flex items-center justify-center font-bold text-white text-sm select-none"
+                            :class="[table.shape, table.status === 'booked' ? 'booked' : 'available', selectedTable && selectedTable.id === table.id ? 'selected' : '']"
+                            :style="`left: ${table.pos_x}%; top: ${table.pos_y}%; transform: translate(-50%, -50%); width: ${table.width}px; height: ${table.height}px; background-color: ${table.status === 'booked' ? '#9ca3af' : table.color};`"
+                            @click="table.status === 'available' && selectTable(table)"
+                            x-text="table.number">
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Selected Table Info -->
+                <div x-show="selectedTable" x-transition class="mt-4 p-4 bg-brand-50 rounded-xl border border-brand-200">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-lg text-brand-800">Table <span x-text="selectedTable?.number"></span> Selected</p>
+                            <p class="text-sm text-gray-600">Capacity: <span x-text="selectedTable?.capacity"></span> guests</p>
+                        </div>
+                        <button @click="selectedTable = null" class="text-gray-400 hover:text-red-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Booking Form -->
+            <div x-show="selectedTable" x-transition class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <h2 class="font-display text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span class="w-8 h-8 bg-brand-600 text-white rounded-full flex items-center justify-center text-sm">3</span>
+                    Your Details
+                </h2>
+                <form @submit.prevent="submitReservation()">
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                            <input type="text" x-model="form.name" required
+                                class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                placeholder="Your name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                            <input type="tel" x-model="form.phone" required
+                                class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                placeholder="+880 1XXXXXXXXX">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" x-model="form.email"
+                            class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                            placeholder="your@email.com">
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Number of Guests *</label>
+                        <div class="flex gap-3 flex-wrap">
+                            <template x-for="n in guestOptions" :key="n">
+                                <button type="button" @click="form.guests = n"
+                                    :class="form.guests === n ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-gray-700 border-gray-300 hover:border-brand-400'"
+                                    class="w-12 h-12 rounded-xl border-2 font-bold transition-all active:scale-95"
+                                    x-text="n">
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Special Requests</label>
+                        <textarea x-model="form.requests" rows="2"
+                            class="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+                            placeholder="Any dietary requirements or special occasions?"></textarea>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="mt-6 p-4 bg-gray-50 rounded-xl">
+                        <h3 class="font-bold text-gray-800 mb-2">Booking Summary</h3>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <p>Date: <span class="font-medium text-gray-900" x-text="selectedDate"></span></p>
+                            <p>Time: <span class="font-medium text-gray-900" x-text="formatTime(selectedTime)"></span></p>
+                            <p>Table: <span class="font-medium text-gray-900" x-text="'Table ' + (selectedTable?.number || '')"></span></p>
+                            <p>Guests: <span class="font-medium text-gray-900" x-text="form.guests"></span></p>
+                        </div>
+                    </div>
+
+                    <button type="submit" :disabled="submitting"
+                        class="w-full mt-6 bg-brand-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-brand-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-show="!submitting">Confirm Reservation</span>
+                        <span x-show="submitting" class="flex items-center justify-center gap-2">
+                            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing...
+                        </span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Success Modal -->
+            <div x-show="showSuccess" x-transition class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold mb-2 text-gray-900">Reservation Confirmed!</h2>
+                    <p class="text-gray-500 mb-2">Table <span x-text="selectedTable?.number"></span> reserved for</p>
+                    <p class="font-bold text-lg text-brand-600 mb-1" x-text="selectedDate"></p>
+                    <p class="font-bold text-lg text-brand-600 mb-6" x-text="formatTime(selectedTime)"></p>
+                    <p class="text-sm text-gray-500 mb-6">We'll call you shortly to confirm your booking.</p>
+                    <a href="/" class="block w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700 transition-all">
+                        Back to Home
+                    </a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    function reservationApp() {
+        return {
+            selectedDate: '',
+            selectedTime: '',
+            tables: [],
+            selectedTable: null,
+            loading: false,
+            submitting: false,
+            showSuccess: false,
+            minDate: new Date().toISOString().split('T')[0],
+            form: { name: '', phone: '', email: '', guests: 2, requests: '' },
+            guestOptions: [1, 2, 3, 4, 5, 6, 7, 8],
+
+            init() {},
+
+            async loadAvailability() {
+                if (!this.selectedDate || !this.selectedTime) return;
+                this.loading = true;
+                this.selectedTable = null;
+                try {
+                    const resp = await fetch(`/api/table-availability?date=${this.selectedDate}&time=${this.selectedTime}`);
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this.tables = data.tables;
+                    }
+                } catch (e) {
+                    console.error('Failed to load availability');
+                }
+                this.loading = false;
+            },
+
+            selectTable(table) {
+                this.selectedTable = table;
+                this.form.guests = Math.min(this.form.guests, table.capacity);
+            },
+
+            formatTime(time) {
+                if (!time) return '';
+                const [h, m] = time.split(':');
+                const hour = parseInt(h);
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const h12 = hour > 12 ? hour - 12 : hour;
+                return `${h12}:${m} ${ampm}`;
+            },
+
+            async submitReservation() {
+                if (!this.form.name || !this.form.phone) {
+                    alert('Name and phone are required');
+                    return;
+                }
+                this.submitting = true;
+                try {
+                    const resp = await fetch('/api/reservations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: this.form.name,
+                            phone: this.form.phone,
+                            email: this.form.email,
+                            date: this.selectedDate,
+                            time: this.selectedTime,
+                            guests: this.form.guests,
+                            requests: this.form.requests,
+                            table_id: this.selectedTable.id,
+                        })
+                    });
+                    if (resp.ok) {
+                        this.showSuccess = true;
+                    } else {
+                        const data = await resp.json();
+                        alert(data.error || 'Failed to make reservation');
+                    }
+                } catch (e) {
+                    alert('Something went wrong. Please try again.');
+                }
+                this.submitting = false;
+            }
+        }
+    }
+    </script>
+</body>
+</html>

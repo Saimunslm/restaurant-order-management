@@ -210,3 +210,93 @@ def clear_waiter_request(table_id):
     table.waiter_called = False
     db.session.commit()
     return jsonify({"success": True})
+
+
+@api_bp.route("/reservations", methods=["POST"])
+def create_reservation():
+    from app.extensions import db
+    from app.models.reservation import Reservation
+    from datetime import datetime
+
+    data = request.get_json()
+    name = data.get("name", "").strip()
+    phone = data.get("phone", "").strip()
+    email = data.get("email", "").strip()
+    date_str = data.get("date", "")
+    time = data.get("time", "")
+    guests = data.get("guests", 2)
+    requests_text = data.get("requests", "")
+    table_id = data.get("table_id")
+
+    if not name or not phone or not date_str or not time:
+        return jsonify({"error": "Name, phone, date, and time are required"}), 400
+
+    try:
+        date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+
+    reservation = Reservation(
+        customer_name=name,
+        phone=phone,
+        email=email,
+        guests=guests,
+        date=date,
+        time=time,
+        special_requests=requests_text,
+        table_id=table_id if table_id else None,
+        status="pending"
+    )
+    db.session.add(reservation)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Reservation submitted successfully",
+        "reservation_id": reservation.id
+    }), 201
+
+
+@api_bp.route("/table-availability")
+def table_availability():
+    from datetime import datetime
+    from app.models.reservation import Reservation
+
+    date_str = request.args.get("date")
+    time_str = request.args.get("time")
+
+    if not date_str or not time_str:
+        return jsonify({"error": "Date and time are required"}), 400
+
+    try:
+        check_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format"}), 400
+
+    all_tables = Table.query.filter_by(is_active=True).all()
+
+    booked_reservations = Reservation.query.filter(
+        Reservation.date == check_date,
+        Reservation.time == time_str,
+        Reservation.status.in_(["confirmed", "pending"]),
+        Reservation.table_id.isnot(None),
+    ).all()
+
+    booked_table_ids = {r.table_id for r in booked_reservations}
+
+    tables = []
+    for t in all_tables:
+        tables.append({
+            "id": t.id,
+            "number": t.table_number,
+            "capacity": t.capacity or 4,
+            "shape": t.shape or "round",
+            "color": t.color or "#10B981",
+            "pos_x": t.pos_x or 50.0,
+            "pos_y": t.pos_y or 50.0,
+            "width": t.width or 80.0,
+            "height": t.height or 80.0,
+            "status": "booked" if t.id in booked_table_ids else "available",
+        })
+
+    return jsonify({"tables": tables, "date": date_str, "time": time_str})

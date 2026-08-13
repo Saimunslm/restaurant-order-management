@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spice Garden - Full Menu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['Playfair Display', 'serif'],
+                        'body': ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        'brand': {
+                            50: '#fdf8f0',
+                            100: '#faebd7',
+                            200: '#f5d5a8',
+                            300: '#e8b86d',
+                            400: '#d4944a',
+                            500: '#c47a2f',
+                            600: '#a85d22',
+                            700: '#8a451c',
+                            800: '#6d361a',
+                            900: '#4a2512',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        html { scroll-behavior: smooth; }
+        .menu-card:hover { transform: translateY(-8px); }
+    </style>
+</head>
+<body class="font-body bg-brand-50 min-h-screen">
+    <div x-data="menuApp()" x-init="init()">
+        <!-- Navigation -->
+        <nav class="fixed top-0 left-0 right-0 z-50 bg-brand-900/95 backdrop-blur-md shadow-xl">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-20">
+                    <div class="flex items-center gap-3">
+                        <a href="/" class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-brand-400 rounded-full flex items-center justify-center">
+                                <span class="text-2xl">🍛</span>
+                            </div>
+                            <div>
+                                <h1 class="font-display text-2xl font-bold text-white">Spice Garden</h1>
+                                <p class="text-brand-200 text-xs tracking-wider">AUTHENTIC BENGALI CUISINE</p>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="hidden md:flex items-center gap-8">
+                        <a href="/" class="text-white/90 hover:text-brand-300 transition font-medium">Home</a>
+                        <a href="/#about" class="text-white/90 hover:text-brand-300 transition font-medium">About</a>
+                        <a href="/public-menu" class="text-brand-300 font-medium">Menu</a>
+                        <a href="/#reservation" class="text-white/90 hover:text-brand-300 transition font-medium">Reservation</a>
+                        <a href="/#contact" class="text-white/90 hover:text-brand-300 transition font-medium">Contact</a>
+                        <a href="/scan/demo" class="bg-brand-400 text-white px-6 py-2.5 rounded-full font-medium hover:bg-brand-500 transition-all hover:shadow-lg active:scale-95">
+                            Order Now
+                        </a>
+                    </div>
+
+                    <a href="/scan/demo" class="md:hidden bg-brand-400 text-white px-4 py-2 rounded-full text-sm font-medium">
+                        Order Now
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="relative pt-20 pb-12 bg-gradient-to-r from-brand-800 to-brand-600 overflow-hidden">
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-10 left-10 w-72 h-72 bg-brand-400 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-10 right-10 w-96 h-96 bg-brand-300 rounded-full blur-3xl"></div>
+            </div>
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-16">
+                <div class="text-center">
+                    <span class="inline-block px-4 py-2 bg-brand-400/30 text-brand-100 rounded-full text-sm font-medium mb-4 border border-brand-400/50">
+                        Our Specialties
+                    </span>
+                    <h2 class="font-display text-4xl sm:text-5xl font-bold text-white mb-4">Explore Our Menu</h2>
+                    <p class="text-brand-200/80 max-w-2xl mx-auto text-lg">
+                        Discover authentic Bengali flavors, crafted with love using recipes passed down through generations
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Offers Section -->
+        {% if offer_map %}
+        <section class="py-8 bg-gradient-to-r from-yellow-400 to-orange-500">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-2xl">🎉</span>
+                    <h3 class="font-bold text-white text-lg">Today's Special Offers!</h3>
+                </div>
+                <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                    {% for product_id, offer in offer_map.items() %}
+                    <div class="bg-white/20 backdrop-blur rounded-xl p-4 min-w-[200px] flex-shrink-0">
+                        <p class="font-semibold text-white">{{ offer.product.name }}</p>
+                        <p class="text-sm mt-2">
+                            <span class="line-through opacity-75 text-white">৳{{ "%.0f"|format(offer.product.price) }}</span>
+                            <span class="font-bold text-yellow-200 ml-2 text-lg">৳{{ "%.0f"|format(offer.offer_price) }}</span>
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Category Tabs -->
+        <section class="sticky top-20 z-40 bg-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="py-3 flex gap-3 overflow-x-auto no-scrollbar">
+                    <button @click="selectedCategory = null"
+                        :class="selectedCategory === null ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'"
+                        class="px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95">
+                        All Items
+                    </button>
+                    {% for cat in categories %}
+                    <button @click="selectedCategory = {{ cat.id }}"
+                        :class="selectedCategory === {{ cat.id }} ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700 hover:bg-brand-100'"
+                        class="px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all active:scale-95">
+                        {{ cat.name }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Menu Grid -->
+        <section class="py-12 bg-brand-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {% for product in products %}
+                    <div x-show="selectedCategory === null || selectedCategory === {{ product.category_id }}"
+                        x-transition
+                        class="menu-card bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl cursor-pointer group">
+                        <div class="relative overflow-hidden">
+                            {% if product.image_url %}
+                            <img src="/static/{{ product.image_url }}" alt="{{ product.name }}" 
+                                class="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500">
+                            {% else %}
+                            <div class="w-full h-48 bg-brand-100 flex items-center justify-center">
+                                <span class="text-6xl">🍛</span>
+                            </div>
+                            {% endif %}
+                            {% if product.id in offer_map %}
+                            <div class="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+                                OFFER
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-display text-xl font-semibold text-gray-900 group-hover:text-brand-600 transition">{{ product.name }}</h3>
+                            <p class="text-gray-500 text-sm mt-2 line-clamp-2 leading-relaxed">{{ product.description }}</p>
+                            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                                {% if product.id in offer_map %}
+                                <div>
+                                    <span class="text-gray-400 line-through text-sm">৳{{ "%.0f"|format(product.price) }}</span>
+                                    <span class="text-red-600 font-bold text-2xl ml-2">৳{{ "%.0f"|format(offer_map[product.id].offer_price) }}</span>
+                                </div>
+                                {% else %}
+                                <span class="text-brand-600 font-bold text-2xl">৳{{ "%.0f"|format(product.price) }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if not products %}
+                <div class="text-center py-20">
+                    <div class="w-24 h-24 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <span class="text-5xl">🍽️</span>
+                    </div>
+                    <h3 class="font-display text-2xl font-bold text-gray-900 mb-2">No Menu Items Yet</h3>
+                    <p class="text-gray-500">Our menu is being prepared. Check back soon!</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- CTA Section -->
+        <section class="py-16 bg-brand-900 relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-10 left-10 w-72 h-72 bg-brand-400 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-10 right-10 w-96 h-96 bg-brand-300 rounded-full blur-3xl"></div>
+            </div>
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+                <h2 class="font-display text-3xl sm:text-4xl font-bold text-white mb-4">Ready to Order?</h2>
+                <p class="text-brand-200/80 mb-8 text-lg">Scan the QR code on your table to start ordering</p>
+                <a href="/scan/demo" class="inline-flex items-center gap-2 bg-brand-400 text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-brand-500 transition-all hover:shadow-xl active:scale-95">
+                    <span>Start Ordering</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                    </svg>
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="bg-gray-900 text-white pt-12 pb-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid md:grid-cols-3 gap-8 mb-8">
+                    <div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-brand-500 rounded-full flex items-center justify-center">
+                                <span class="text-xl">🍛</span>
+                            </div>
+                            <div>
+                                <h3 class="font-display text-xl font-bold">Spice Garden</h3>
+                                <p class="text-gray-400 text-xs tracking-wider">AUTHENTIC BENGALI</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-400 text-sm leading-relaxed">
+                            Serving authentic Bengali cuisine with love and tradition since 2009.
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-lg mb-4">Quick Links</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li><a href="/" class="hover:text-brand-400 transition">Home</a></li>
+                            <li><a href="/#about" class="hover:text-brand-400 transition">About Us</a></li>
+                            <li><a href="/public-menu" class="hover:text-brand-400 transition">Menu</a></li>
+                            <li><a href="/#reservation" class="hover:text-brand-400 transition">Reservation</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-lg mb-4">Opening Hours</h4>
+                        <ul class="space-y-2 text-gray-400">
+                            <li class="flex justify-between"><span>Lunch</span><span>12:00 - 3:00 PM</span></li>
+                            <li class="flex justify-between"><span>Dinner</span><span>6:00 - 11:00 PM</span></li>
+                            <li class="flex justify-between"><span>Fridays</span><span>12:30 - 11:00 PM</span></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-800 pt-6 text-center text-gray-500 text-sm">
+                    <p>&copy; 2024 Spice Garden. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+    function menuApp() {
+        return {
+            selectedCategory: null,
+
+            init() {
+                // Any initialization if needed
+            }
+        }
+    }
+    </script>
+</body>
+</html>

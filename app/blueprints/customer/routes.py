@@ -9,6 +9,26 @@ from app.blueprints.customer.decorators import table_session_required
 customer_bp = Blueprint("customer", __name__)
 
 
+@customer_bp.route("/public-menu")
+def public_menu():
+    categories = Category.query.filter_by(status=True).order_by(Category.display_order).all()
+    products = Product.query.filter_by(is_available=True).all()
+    offers = get_active_offers()
+    offer_map = {o.product_id: o for o in offers}
+
+    return render_template(
+        "customer/public_menu.html",
+        categories=categories,
+        products=products,
+        offer_map=offer_map,
+    )
+
+
+@customer_bp.route("/reserve-table")
+def reserve_table():
+    return render_template("customer/reserve_table.html")
+
+
 @customer_bp.route("/scan/<qr_token>")
 def scan(qr_token):
     table = Table.query.filter_by(qr_token=qr_token, is_active=True).first_or_404()

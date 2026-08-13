@@ -5,5 +5,6 @@ from app.models.order import Order, OrderItem
 from app.models.special_offer import SpecialOffer
 from app.models.combo_offer import ComboOffer, ComboItem
 from app.models.staff_user import StaffUser
+from app.models.reservation import Reservation
 
-__all__ = ["Table", "Category", "Product", "Order", "OrderItem", "SpecialOffer", "ComboOffer", "ComboItem", "StaffUser"]
+__all__ = ["Table", "Category", "Product", "Order", "OrderItem", "SpecialOffer", "ComboOffer", "ComboItem", "StaffUser", "Reservation"]

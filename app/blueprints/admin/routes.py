@@ -381,3 +381,175 @@ def toggle_combo(id):
     db.session.commit()
     flash(f"Combo {'activated' if combo.is_active else 'deactivated'}", "success")
     return redirect(url_for("admin.combos"))
+
+
+@admin_bp.route("/reservations")
+@login_required
+@admin_required
+def reservations():
+    from app.models.reservation import Reservation
+    from datetime import date
+
+    status_filter = request.args.get("status", "all")
+    query = Reservation.query.order_by(Reservation.date.desc(), Reservation.time.desc())
+    
+    if status_filter != "all":
+        query = query.filter_by(status=status_filter)
+    
+    reservations = query.all()
+    today = date.today()
+    all_tables = Table.query.filter_by(is_active=True).order_by(Table.table_number).all()
+    tables_map = {t.id: t for t in all_tables}
+    
+    return render_template(
+        "admin/reservations.html",
+        reservations=reservations,
+        today=today,
+        status_filter=status_filter,
+        all_tables=all_tables,
+        tables_map=tables_map,
+    )
+
+
+@admin_bp.route("/reservations/<reservation_id>/status", methods=["POST"])
+@login_required
+@admin_required
+def update_reservation_status(reservation_id):
+    from app.models.reservation import Reservation
+
+    reservation = Reservation.query.get_or_404(reservation_id)
+    new_status = request.form.get("status")
+    
+    if new_status in Reservation.STATUSES:
+        reservation.status = new_status
+        db.session.commit()
+        flash(f"Reservation status updated to {new_status}", "success")
+    else:
+        flash("Invalid status", "error")
+    
+    return redirect(url_for("admin.reservations"))
+
+
+@admin_bp.route("/reservations/<reservation_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_reservation(reservation_id):
+    from app.models.reservation import Reservation
+
+    reservation = Reservation.query.get_or_404(reservation_id)
+    db.session.delete(reservation)
+    db.session.commit()
+    flash("Reservation deleted", "success")
+    return redirect(url_for("admin.reservations"))
+
+
+@admin_bp.route("/api/reservations/<reservation_id>/assign-table", methods=["POST"])
+@login_required
+@admin_required
+def api_assign_table(reservation_id):
+    from flask import jsonify
+    from app.models.reservation import Reservation
+
+    reservation = Reservation.query.get_or_404(reservation_id)
+    data = request.get_json()
+    table_id = data.get("table_id")
+
+    if table_id:
+        table = Table.query.get(table_id)
+        if not table:
+            return jsonify({"error": "Table not found"}), 404
+        reservation.table_id = table_id
+        reservation.table_number = table.table_number
+    else:
+        reservation.table_id = None
+        reservation.table_number = None
+
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+# --- Table Layout API Routes ---
+
+@admin_bp.route("/api/tables", methods=["POST"])
+@login_required
+@admin_required
+def api_add_table():
+    from flask import jsonify
+    data = request.get_json()
+    table_number = data.get("table_number")
+    capacity = data.get("capacity", 4)
+    shape = data.get("shape", "round")
+    color = data.get("color", "#10B981")
+
+    if not table_number:
+        return jsonify({"error": "Table number is required"}), 400
+
+    existing = Table.query.filter_by(table_number=table_number).first()
+    if existing:
+        return jsonify({"error": "Table number already exists"}), 400
+
+    table = create_table_with_qr(int(table_number))
+    table.capacity = capacity
+    table.shape = shape
+    table.color = color
+    table.pos_x = 50.0
+    table.pos_y = 50.0
+    db.session.commit()
+    return jsonify({"success": True, "table_id": table.id})
+
+
+@admin_bp.route("/api/tables/<int:table_id>", methods=["POST"])
+@login_required
+@admin_required
+def api_update_table(table_id):
+    from flask import jsonify
+    table = Table.query.get_or_404(table_id)
+    data = request.get_json()
+
+    if "table_number" in data:
+        new_num = int(data["table_number"])
+        existing = Table.query.filter(Table.table_number == new_num, Table.id != table_id).first()
+        if existing:
+            return jsonify({"error": "Table number already exists"}), 400
+        table.table_number = new_num
+
+    if "capacity" in data:
+        table.capacity = int(data["capacity"])
+    if "shape" in data:
+        table.shape = data["shape"]
+    if "color" in data:
+        table.color = data["color"]
+    if "is_active" in data:
+        table.is_active = bool(data["is_active"])
+
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@admin_bp.route("/api/tables/positions", methods=["POST"])
+@login_required
+@admin_required
+def api_save_positions():
+    from flask import jsonify
+    data = request.get_json()
+    tables_data = data.get("tables", [])
+
+    for t in tables_data:
+        table = Table.query.get(t.get("id"))
+        if table:
+            table.pos_x = t.get("pos_x", table.pos_x)
+            table.pos_y = t.get("pos_y", table.pos_y)
+
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@admin_bp.route("/api/tables/<int:table_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def api_delete_table(table_id):
+    from flask import jsonify
+    table = Table.query.get_or_404(table_id)
+    db.session.delete(table)
+    db.session.commit()
+    return jsonify({"success": True})
